@@ -1,0 +1,17 @@
+config {
+  type:"incremental",
+  schema:"raw",
+  name:"stg_customers",
+  uniqueKey:["customer_id"]
+}
+
+SELECT
+  customer_id,
+  INITCAP(name) AS name,
+  LOWER(email) AS email,
+  COALESCE(country, 'Nigeria') AS country,
+  CAST(created_at AS TIMESTAMP) AS created_at
+FROM
+  `datatel-comms-pipeline-496118.raw.customers_external`
+QUALIFY
+  ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY load_date DESC) = 1

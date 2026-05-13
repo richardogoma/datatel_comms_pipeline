@@ -1,0 +1,31 @@
+config {
+  type:"incremental",
+  schema:"raw",
+  name:"stg_sessions",
+  uniqueKey:["session_id"]
+}
+
+SELECT
+  session_id,
+  customer_id,
+
+  CAST(start_time AS TIMESTAMP) AS start_time,
+  CAST(end_time AS TIMESTAMP) AS end_time,
+
+  COALESCE(data_used_mb, 0) AS data_used_mb,
+
+  CASE
+    WHEN CAST(end_time AS TIMESTAMP) > CAST(start_time AS TIMESTAMP)
+    THEN TIMESTAMP_DIFF(
+      CAST(end_time AS TIMESTAMP),
+      CAST(start_time AS TIMESTAMP),
+      SECOND
+    )
+    ELSE 0
+  END AS session_duration_sec
+FROM `datatel-comms-pipeline-496118.raw.network_sessions_external`
+QUALIFY
+  ROW_NUMBER() OVER (
+    PARTITION BY session_id
+    ORDER BY load_date DESC
+  ) = 1

@@ -1,0 +1,19 @@
+config {
+  type:"incremental",
+  schema:"raw",
+  name:"stg_billing",
+  uniqueKey:["transaction_id"]
+}
+
+SELECT
+  transaction_id,
+  customer_id,
+  COALESCE(amount, 0) AS amount,
+  currency,
+  CAST(transaction_date AS TIMESTAMP) AS transaction_date
+FROM `datatel-comms-pipeline-496118.raw.billing_transactions_external`
+QUALIFY
+  ROW_NUMBER() OVER (
+    PARTITION BY transaction_id
+    ORDER BY load_date DESC
+  ) = 1

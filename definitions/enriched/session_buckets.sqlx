@@ -1,0 +1,21 @@
+config {
+  type: "view",
+  schema: "enriched",
+  description: "Labels every session in stg_sessions with a session type based on its duration.",
+  columns: {
+    customer_id: "The ID of the customer.",
+    session_id: "The ID of the session.",
+    session_type: "The type of session based on duration (short, medium, or long)."
+  }
+}
+
+SELECT
+  customer_id,
+  session_id,
+  CASE
+    WHEN session_duration_sec < 60 THEN 'short'
+    WHEN session_duration_sec >= 60 AND session_duration_sec <= 299 THEN 'medium'
+    ELSE 'long'
+  END AS session_type
+FROM
+  ${ref("stg_sessions")}

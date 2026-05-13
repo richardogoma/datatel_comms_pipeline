@@ -1,0 +1,23 @@
+
+config {
+  type: "operations",
+  schema: "raw",
+  name: "network_sessions_external",
+  hasOutput: true,
+}
+
+CREATE OR REPLACE EXTERNAL TABLE ${self()} (
+  session_id STRING,
+  customer_id STRING,
+  start_time STRING,
+  end_time STRING,
+  data_used_mb STRING
+)
+WITH PARTITION COLUMNS (
+  load_date STRING
+)
+OPTIONS (
+  format = "CSV",
+  uris = ["gs://datatel_comms_landing/network_sessions/*"],
+  hive_partition_uri_prefix = "gs://datatel_comms_landing/network_sessions"
+);

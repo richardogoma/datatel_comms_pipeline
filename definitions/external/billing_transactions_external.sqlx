@@ -1,0 +1,23 @@
+
+config {
+  type: "operations",
+  schema: "raw",
+  name: "billing_transactions_external",
+  hasOutput: true,
+}
+
+CREATE OR REPLACE EXTERNAL TABLE ${self()} (
+  transaction_id STRING,
+  customer_id STRING,
+  amount STRING,
+  currency STRING,
+  transaction_date STRING
+)
+WITH PARTITION COLUMNS (
+  load_date STRING
+)
+OPTIONS (
+  format = "CSV",
+  uris = ["gs://datatel_comms_landing/billing_transactions/*"],
+  hive_partition_uri_prefix = "gs://datatel_comms_landing/billing_transactions"
+);

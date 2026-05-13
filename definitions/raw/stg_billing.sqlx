@@ -1,19 +1,30 @@
+
 config {
-  type:"incremental",
-  schema:"raw",
-  name:"stg_billing",
-  uniqueKey:["transaction_id"]
+  type: "incremental",
+  uniqueKey: ["transaction_id"],
+  schema: "raw",
+  tags: ["auto-cleaning"],
 }
 
 SELECT
-  transaction_id,
-  customer_id,
-  COALESCE(amount, 0) AS amount,
+  SAFE_CAST(transaction_id AS INT64) as transaction_id,
+  SAFE_CAST(customer_id AS INT64) as customer_id,
+  COALESCE(CAST(amount AS FLOAT64), 0) AS amount,
   currency,
   CAST(transaction_date AS TIMESTAMP) AS transaction_date
-FROM `datatel-comms-pipeline-496118.raw.billing_transactions_external`
+FROM
+  ${ref("billing_transactions_external")}
+WHERE
+  SAFE_CAST(transaction_id AS INT64) IS NOT NULL AND SAFE_CAST(customer_id AS INT64) IS NOT NULL
+
+${when(incremental(), `
+  AND CAST(transaction_date AS TIMESTAMP) > (SELECT MAX(transaction_date) FROM ${self()})
+`)}
+
 QUALIFY
   ROW_NUMBER() OVER (
-    PARTITION BY transaction_id
-    ORDER BY load_date DESC
+    PARTITION BY
+      transaction_id
+    ORDER BY
+      PARSE_DATE('%Y%m%d', load_date) DESC
   ) = 1

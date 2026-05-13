@@ -1,0 +1,23 @@
+
+config {
+  type: "operations",
+  schema: "raw",
+  name: "customers_external",
+  hasOutput: true,
+}
+
+CREATE OR REPLACE EXTERNAL TABLE ${self()} (
+  customer_id STRING,
+  name STRING,
+  email STRING,
+  country STRING,
+  created_at STRING
+)
+WITH PARTITION COLUMNS (
+  load_date STRING
+)
+OPTIONS (
+  format = "CSV",
+  uris = ["gs://datatel_comms_landing/customers/*"],
+  hive_partition_uri_prefix = "gs://datatel_comms_landing/customers"
+);

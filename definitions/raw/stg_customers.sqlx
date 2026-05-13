@@ -1,17 +1,30 @@
+
 config {
-  type:"incremental",
-  schema:"raw",
-  name:"stg_customers",
-  uniqueKey:["customer_id"]
+  type: "incremental",
+  uniqueKey: ["customer_id"],
+  schema: "raw",
+  tags: ["auto-cleaning"],
 }
 
 SELECT
-  customer_id,
+  SAFE_CAST(customer_id AS INT64) as customer_id,
   INITCAP(name) AS name,
   LOWER(email) AS email,
   COALESCE(country, 'Nigeria') AS country,
   CAST(created_at AS TIMESTAMP) AS created_at
 FROM
-  `datatel-comms-pipeline-496118.raw.customers_external`
+  ${ref("customers_external")}
+WHERE
+  SAFE_CAST(customer_id AS INT64) IS NOT NULL
+
+${when(incremental(), `
+  AND CAST(created_at AS TIMESTAMP) > (SELECT MAX(created_at) FROM ${self()})
+`)}
+
 QUALIFY
-  ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY load_date DESC) = 1
+  ROW_NUMBER() OVER (
+    PARTITION BY
+      customer_id
+    ORDER BY
+      PARSE_DATE('%Y%m%d', load_date) DESC
+  ) = 1

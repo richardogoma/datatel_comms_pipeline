@@ -1,13 +1,11 @@
 import argparse
 import os
 import random
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 
 import numpy as np
 import pandas as pd
 from faker import Faker
-from google.cloud import storage
 from tqdm import tqdm
 
 fake = Faker()
@@ -31,61 +29,7 @@ def generate_skewed_ids(n_ids, size):
     return np.random.choice(np.arange(1, n_ids + 1), size=size, p=weights)
 
 
-def get_table_name(filename):
-    return filename.replace("src_", "").replace(".csv", "")
-
-
-def upload_file_to_gcs(client, bucket_name, local_file_path, gcs_path):
-    bucket = client.bucket(bucket_name)
-    blob = bucket.blob(gcs_path)
-    blob.upload_from_filename(local_file_path)
-    return f"Uploaded {local_file_path} to gs://{bucket_name}/{gcs_path}"
-
-
-def upload_raw_files(
-    bucket_name, load_date, time_suffix, raw_data_dir="data/raw", max_workers=4
-):
-    if not os.path.exists(raw_data_dir):
-        raise FileNotFoundError(f"Source directory not found: {raw_data_dir}")
-
-    files = [f for f in os.listdir(raw_data_dir) if f.endswith(".csv")]
-    if not files:
-        raise FileNotFoundError(f"No CSV files found in {raw_data_dir}")
-
-    client = storage.Client()
-    upload_tasks = []
-
-    for filename in files:
-        table_name = get_table_name(filename)
-        base_name = filename.replace(".csv", "")
-        gcs_filename = f"{base_name}_{time_suffix}.csv"
-        gcs_path = f"{table_name}/load_date={load_date}/{gcs_filename}"
-        local_path = os.path.join(raw_data_dir, filename)
-        upload_tasks.append((local_path, gcs_path))
-
-    print(
-        f"Uploading {len(upload_tasks)} files to gs://{bucket_name} with Hive partitioning..."
-    )
-    with ThreadPoolExecutor(
-        max_workers=min(len(upload_tasks), max_workers)
-    ) as executor:
-        futures = [
-            executor.submit(
-                upload_file_to_gcs, client, bucket_name, local_path, gcs_path
-            )
-            for local_path, gcs_path in upload_tasks
-        ]
-
-        for future in tqdm(
-            as_completed(futures), total=len(futures), desc="Uploading files"
-        ):
-            try:
-                print(future.result())
-            except Exception as exc:
-                print(f"Upload failed: {exc}")
-
-
-def generate_customers():
+def generate_customers(raw_data_dir="data/raw"):
     print("📦 Generating customers...")
     email_domains = ["gmail.com", "yahoo.com", "hotmail.com", "outlook.com"]
     customers = []
@@ -103,13 +47,13 @@ def generate_customers():
         customers, columns=["customer_id", "name", "email", "country", "created_at"]
     )
     df_customers = pd.concat([df_customers, df_customers.sample(frac=0.01)])
-    output_path = "data/raw/src_customers.csv"
+    output_path = os.path.join(raw_data_dir, "src_customers.csv")
     df_customers.to_csv(output_path, index=False)
     print("✅ Customers saved")
     return output_path
 
 
-def generate_transactions():
+def generate_transactions(raw_data_dir="data/raw"):
     print("💳 Generating transactions... (this will take time)")
     customer_ids = generate_skewed_ids(NUM_CUSTOMERS, NUM_TRANSACTIONS)
     transactions = []
@@ -140,13 +84,13 @@ def generate_transactions():
             "transaction_date",
         ],
     )
-    output_path = "data/raw/src_billing_transactions.csv"
+    output_path = os.path.join(raw_data_dir, "src_billing_transactions.csv")
     df_transactions.to_csv(output_path, index=False)
     print("✅ Transactions saved")
     return output_path
 
 
-def generate_sessions():
+def generate_sessions(raw_data_dir="data/raw"):
     print("🌐 Generating sessions... (largest step)")
     customer_ids_sessions = generate_skewed_ids(NUM_CUSTOMERS, NUM_SESSIONS)
     sessions = []
@@ -182,62 +126,36 @@ def generate_sessions():
         sessions,
         columns=["session_id", "customer_id", "start_time", "end_time", "data_used_mb"],
     )
-    output_path = "data/raw/src_network_sessions.csv"
+    output_path = os.path.join(raw_data_dir, "src_network_sessions.csv")
     df_sessions.to_csv(output_path, index=False)
     print("✅ Sessions saved")
     return output_path
 
 
-def main(bucket_name=None, load_date=None, upload=False, max_workers=4):
-    if load_date is None:
-        load_date = datetime.now().strftime("%Y%m%d")
-    time_suffix = datetime.now().strftime("%H%M%S")
-
-    os.makedirs("data/raw", exist_ok=True)
+def generate_data(raw_data_dir="data/raw"):
+    os.makedirs(raw_data_dir, exist_ok=True)
     generated_files = [
-        generate_customers(),
-        generate_transactions(),
-        generate_sessions(),
+        generate_customers(raw_data_dir),
+        generate_transactions(raw_data_dir),
+        generate_sessions(raw_data_dir),
     ]
 
     print("\n🔥 DATA GENERATION COMPLETE")
     print("Files created:")
     for path in generated_files:
         print(f"- {os.path.basename(path)}")
-
-    if upload:
-        upload_raw_files(
-            bucket_name=bucket_name,
-            load_date=load_date,
-            time_suffix=time_suffix,
-            max_workers=max_workers,
-        )
+    return generated_files
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Generate raw CSV data and optionally upload to GCS using Hive partitioning."
+        description="Generate raw CSV data for the datatel communications pipeline."
     )
     parser.add_argument(
-        "--bucket", help="GCS bucket name for upload, e.g., datatel_comms_bucket"
-    )
-    parser.add_argument(
-        "--load_date", help="Load date in YYYYMMDD format. Defaults to today."
-    )
-    parser.add_argument(
-        "--upload", help="Upload generated files to GCS.", action="store_true"
-    )
-    parser.add_argument(
-        "--workers", help="Number of parallel upload workers.", type=int, default=4
+        "--raw-dir",
+        default="data/raw",
+        help="Local raw data directory for generated CSVs.",
     )
     args = parser.parse_args()
 
-    if args.upload and not args.bucket:
-        parser.error("--bucket is required when --upload is set")
-
-    main(
-        bucket_name=args.bucket,
-        load_date=args.load_date,
-        upload=args.upload,
-        max_workers=args.workers,
-    )
+    generate_data(raw_data_dir=args.raw_dir)

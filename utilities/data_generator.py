@@ -21,6 +21,7 @@ NUM_CUSTOMERS = 100_000
 NUM_TRANSACTIONS = 1_500_000
 NUM_SESSIONS = 3_000_000
 
+
 # =========================
 # HELPERS
 # =========================
@@ -41,7 +42,9 @@ def upload_file_to_gcs(client, bucket_name, local_file_path, gcs_path):
     return f"Uploaded {local_file_path} to gs://{bucket_name}/{gcs_path}"
 
 
-def upload_raw_files(bucket_name, load_date, time_suffix, raw_data_dir="data/raw", max_workers=4):
+def upload_raw_files(
+    bucket_name, load_date, time_suffix, raw_data_dir="data/raw", max_workers=4
+):
     if not os.path.exists(raw_data_dir):
         raise FileNotFoundError(f"Source directory not found: {raw_data_dir}")
 
@@ -60,12 +63,22 @@ def upload_raw_files(bucket_name, load_date, time_suffix, raw_data_dir="data/raw
         local_path = os.path.join(raw_data_dir, filename)
         upload_tasks.append((local_path, gcs_path))
 
-    print(f"Uploading {len(upload_tasks)} files to gs://{bucket_name} with Hive partitioning...")
-    with ThreadPoolExecutor(max_workers=min(len(upload_tasks), max_workers)) as executor:
-        futures = [executor.submit(upload_file_to_gcs, client, bucket_name, local_path, gcs_path)
-                   for local_path, gcs_path in upload_tasks]
+    print(
+        f"Uploading {len(upload_tasks)} files to gs://{bucket_name} with Hive partitioning..."
+    )
+    with ThreadPoolExecutor(
+        max_workers=min(len(upload_tasks), max_workers)
+    ) as executor:
+        futures = [
+            executor.submit(
+                upload_file_to_gcs, client, bucket_name, local_path, gcs_path
+            )
+            for local_path, gcs_path in upload_tasks
+        ]
 
-        for future in tqdm(as_completed(futures), total=len(futures), desc="Uploading files"):
+        for future in tqdm(
+            as_completed(futures), total=len(futures), desc="Uploading files"
+        ):
             try:
                 print(future.result())
             except Exception as exc:
@@ -83,12 +96,12 @@ def generate_customers():
         local_part = name.lower().replace(" ", ".")
         email = f"{local_part}@{domain}"
         country = "Nigeria" if random.random() > 0.03 else None
-        created_at = fake.date_time_between(start_date='-3y', end_date='-6m')
+        created_at = fake.date_time_between(start_date="-3y", end_date="-6m")
         customers.append([i, name, email, country, created_at])
 
-    df_customers = pd.DataFrame(customers, columns=[
-        "customer_id", "name", "email", "country", "created_at"
-    ])
+    df_customers = pd.DataFrame(
+        customers, columns=["customer_id", "name", "email", "country", "created_at"]
+    )
     df_customers = pd.concat([df_customers, df_customers.sample(frac=0.01)])
     output_path = "data/raw/src_customers.csv"
     df_customers.to_csv(output_path, index=False)
@@ -112,14 +125,21 @@ def generate_transactions():
             amount = None
 
         currency = random.choice(["NGN", "ngn", "Naira", None])
-        tx_time = fake.date_time_between(start_date='-1y', end_date='now')
+        tx_time = fake.date_time_between(start_date="-1y", end_date="now")
         transactions.append([i, cust_id, amount, currency, tx_time])
 
     print("🔁 Injecting duplicates...")
     transactions += random.sample(transactions, int(0.02 * NUM_TRANSACTIONS))
-    df_transactions = pd.DataFrame(transactions, columns=[
-        "transaction_id", "customer_id", "amount", "currency", "transaction_date"
-    ])
+    df_transactions = pd.DataFrame(
+        transactions,
+        columns=[
+            "transaction_id",
+            "customer_id",
+            "amount",
+            "currency",
+            "transaction_date",
+        ],
+    )
     output_path = "data/raw/src_billing_transactions.csv"
     df_transactions.to_csv(output_path, index=False)
     print("✅ Transactions saved")
@@ -133,7 +153,7 @@ def generate_sessions():
 
     for i in tqdm(range(1, NUM_SESSIONS + 1), desc="Sessions"):
         cust_id = int(customer_ids_sessions[i - 1])
-        start = fake.date_time_between(start_date='-1y', end_date='now')
+        start = fake.date_time_between(start_date="-1y", end_date="now")
 
         if random.random() < 0.7:
             duration = random.randint(10, 300)
@@ -152,19 +172,16 @@ def generate_sessions():
         if random.random() < 0.02:
             data_used = None
 
-        sessions.append([
-            i,
-            cust_id,
-            start,
-            end,
-            round(data_used, 2) if data_used else None
-        ])
+        sessions.append(
+            [i, cust_id, start, end, round(data_used, 2) if data_used else None]
+        )
 
     print("🔁 Injecting session duplicates...")
     sessions += random.sample(sessions, int(0.02 * NUM_SESSIONS))
-    df_sessions = pd.DataFrame(sessions, columns=[
-        "session_id", "customer_id", "start_time", "end_time", "data_used_mb"
-    ])
+    df_sessions = pd.DataFrame(
+        sessions,
+        columns=["session_id", "customer_id", "start_time", "end_time", "data_used_mb"],
+    )
     output_path = "data/raw/src_network_sessions.csv"
     df_sessions.to_csv(output_path, index=False)
     print("✅ Sessions saved")
@@ -173,10 +190,10 @@ def generate_sessions():
 
 def main(bucket_name=None, load_date=None, upload=False, max_workers=4):
     if load_date is None:
-        load_date = datetime.now().strftime('%Y%m%d')
-    time_suffix = datetime.now().strftime('%H%M%S')
+        load_date = datetime.now().strftime("%Y%m%d")
+    time_suffix = datetime.now().strftime("%H%M%S")
 
-    os.makedirs('data/raw', exist_ok=True)
+    os.makedirs("data/raw", exist_ok=True)
     generated_files = [
         generate_customers(),
         generate_transactions(),
@@ -189,18 +206,38 @@ def main(bucket_name=None, load_date=None, upload=False, max_workers=4):
         print(f"- {os.path.basename(path)}")
 
     if upload:
-        upload_raw_files(bucket_name=bucket_name, load_date=load_date, time_suffix=time_suffix, max_workers=max_workers)
+        upload_raw_files(
+            bucket_name=bucket_name,
+            load_date=load_date,
+            time_suffix=time_suffix,
+            max_workers=max_workers,
+        )
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Generate raw CSV data and optionally upload to GCS using Hive partitioning.")
-    parser.add_argument("--bucket", help="GCS bucket name for upload, e.g., datatel_comms_bucket")
-    parser.add_argument("--load_date", help="Load date in YYYYMMDD format. Defaults to today.")
-    parser.add_argument("--upload", help="Upload generated files to GCS.", action="store_true")
-    parser.add_argument("--workers", help="Number of parallel upload workers.", type=int, default=4)
+    parser = argparse.ArgumentParser(
+        description="Generate raw CSV data and optionally upload to GCS using Hive partitioning."
+    )
+    parser.add_argument(
+        "--bucket", help="GCS bucket name for upload, e.g., datatel_comms_bucket"
+    )
+    parser.add_argument(
+        "--load_date", help="Load date in YYYYMMDD format. Defaults to today."
+    )
+    parser.add_argument(
+        "--upload", help="Upload generated files to GCS.", action="store_true"
+    )
+    parser.add_argument(
+        "--workers", help="Number of parallel upload workers.", type=int, default=4
+    )
     args = parser.parse_args()
 
     if args.upload and not args.bucket:
         parser.error("--bucket is required when --upload is set")
 
-    main(bucket_name=args.bucket, load_date=args.load_date, upload=args.upload, max_workers=args.workers)
+    main(
+        bucket_name=args.bucket,
+        load_date=args.load_date,
+        upload=args.upload,
+        max_workers=args.workers,
+    )

@@ -8,4 +8,5 @@ dependencies = [
     "faker>=40.15.0",
     "pandas>=3.0.3",
     "tqdm>=4.67.3",
+    "google-cloud-storage>=2.10.0",
 ]

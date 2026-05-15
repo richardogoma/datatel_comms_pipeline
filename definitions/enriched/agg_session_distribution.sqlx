@@ -1,0 +1,21 @@
+config {
+  type: "table",
+  schema: "enriched",
+  description: "Creates an aggregation table with one row per customer containing the count of short, medium, and long sessions.",
+  columns: {
+    customer_id: "The ID of the customer.",
+    short_sessions: "The count of sessions under 60 seconds.",
+    medium_sessions: "The count of sessions between 60 and 299 seconds (inclusive).",
+    long_sessions: "The count of sessions of 300 seconds or more."
+  }
+}
+
+SELECT
+  customer_id,
+  SUM(CASE WHEN session_type = 'short' THEN 1 ELSE 0 END) AS short_sessions,
+  SUM(CASE WHEN session_type = 'medium' THEN 1 ELSE 0 END) AS medium_sessions,
+  SUM(CASE WHEN session_type = 'long' THEN 1 ELSE 0 END) AS long_sessions
+FROM
+  ${ref("session_buckets")}
+GROUP BY
+  customer_id

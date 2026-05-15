@@ -4,4 +4,16 @@ version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+    "faker>=40.15.0",
+    "pandas>=3.0.3",
+    "tqdm>=4.67.3",
+    "google-cloud-storage>=2.10.0",
+    "great-expectations>=1.17.1",
+    "truststore>=0.10.4",
+]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.15.12",
+]

@@ -1,0 +1,19 @@
+config {
+  type: "table",
+  schema: "enriched",
+  description: "Aggregates stg_billing to produce total revenue and transaction count per customer.",
+  columns: {
+    customer_id: "The ID of the customer.",
+    total_revenue: "The sum of all billed amounts for the customer.",
+    total_transactions: "The total count of transactions for the customer."
+  }
+}
+
+SELECT
+  customer_id,
+  SUM(amount) AS total_revenue,
+  COUNT(transaction_id) AS total_transactions
+FROM
+  ${ref("raw", "stg_billing")}
+GROUP BY
+  customer_id

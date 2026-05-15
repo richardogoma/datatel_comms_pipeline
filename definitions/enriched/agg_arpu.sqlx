@@ -1,0 +1,38 @@
+config {
+  type: "table",
+  schema: "enriched",
+  description: "Calculates Average Revenue Per User (ARPU) per customer. ARPU is defined as total revenue divided by the number of distinct calendar months in which the customer had at least one transaction. The NULLIF function is used to prevent divide-by-zero errors by returning NULL if a customer has no transaction months, which results in a NULL ARPU.",
+  columns: {
+    customer_id: "The ID of the customer.",
+    arpu: "The average revenue per user for the customer."
+  }
+}
+
+WITH customer_monthly_transactions AS (
+  SELECT
+    customer_id,
+    DATE_TRUNC(transaction_date, MONTH) as month
+  FROM
+    ${ref("raw", "stg_billing")}
+  GROUP BY
+    customer_id,
+    month
+),
+
+customer_months AS (
+  SELECT
+    customer_id,
+    COUNT(month) as num_months
+  FROM
+    customer_monthly_transactions
+  GROUP BY
+    customer_id
+)
+
+SELECT
+  aur.customer_id,
+  aur.total_revenue / NULLIF(cm.num_months, 0) AS arpu
+FROM
+  ${ref("agg_user_revenue")} aur
+JOIN
+  customer_months cm ON aur.customer_id = cm.customer_id

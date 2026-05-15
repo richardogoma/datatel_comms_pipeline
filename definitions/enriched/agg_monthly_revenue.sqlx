@@ -1,0 +1,20 @@
+config {
+  type: "table",
+  schema: "enriched",
+  description: "Shows each customer’s revenue broken down by calendar month.",
+  columns: {
+    customer_id: "The ID of the customer.",
+    month: "The first day of the month for the revenue breakdown.",
+    monthly_revenue: "The total revenue for the customer in that month."
+  }
+}
+
+SELECT
+  customer_id,
+  DATE_TRUNC(transaction_date, MONTH) AS month,
+  SUM(amount) AS monthly_revenue
+FROM
+  ${ref("raw", "stg_billing")}
+GROUP BY
+  customer_id,
+  month

@@ -1,0 +1,38 @@
+
+config {
+  type: "incremental",
+  uniqueKey: ["session_id"],
+  schema: "raw",
+  tags: ["auto-cleaning"],
+}
+
+SELECT
+  SAFE_CAST(session_id AS INT64) as session_id,
+  SAFE_CAST(customer_id AS INT64) as customer_id,
+  CAST(start_time AS TIMESTAMP) AS start_time,
+  CAST(end_time AS TIMESTAMP) AS end_time,
+  COALESCE(CAST(data_used_mb AS FLOAT64), 0) AS data_used_mb,
+  CASE
+    WHEN CAST(end_time AS TIMESTAMP) > CAST(start_time AS TIMESTAMP) THEN TIMESTAMP_DIFF(
+      CAST(end_time AS TIMESTAMP),
+      CAST(start_time AS TIMESTAMP),
+      SECOND
+    )
+    ELSE 0
+  END AS session_duration_sec
+FROM
+  ${ref("src_network_sessions")}
+WHERE
+  SAFE_CAST(session_id AS INT64) IS NOT NULL AND SAFE_CAST(customer_id AS INT64) IS NOT NULL
+
+${when(incremental(), `
+  AND CAST(start_time AS TIMESTAMP) > (SELECT MAX(start_time) FROM ${self()})
+`)}
+
+QUALIFY
+  ROW_NUMBER() OVER (
+    PARTITION BY
+      session_id
+    ORDER BY
+      PARSE_DATE('%Y%m%d', load_date) DESC
+  ) = 1

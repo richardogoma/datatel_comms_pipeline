@@ -1,0 +1,21 @@
+config {
+  type: "table",
+  schema: "enriched",
+  description: "Aggregates stg_sessions to produce total data usage, average session duration, and session count per customer.",
+  columns: {
+    customer_id: "The ID of the customer.",
+    total_data_used_mb: "Total megabytes consumed across all sessions for the customer.",
+    avg_session_duration_sec: "The average session duration in seconds for the customer.",
+    total_sessions: "The total count of all sessions for the customer."
+  }
+}
+
+SELECT
+  customer_id,
+  SUM(data_used_mb) AS total_data_used_mb,
+  AVG(session_duration_sec) AS avg_session_duration_sec,
+  COUNT(session_id) AS total_sessions
+FROM
+  ${ref("stg_sessions")}
+GROUP BY
+  customer_id

@@ -1,8 +1,7 @@
-
 config {
   type: "operations",
   schema: "raw",
-  name: "network_sessions_external",
+  name: "src_network_sessions",
   hasOutput: true,
 }
 

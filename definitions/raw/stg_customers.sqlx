@@ -13,7 +13,7 @@ SELECT
   COALESCE(country, 'Nigeria') AS country,
   CAST(created_at AS TIMESTAMP) AS created_at
 FROM
-  ${ref("customers_external")}
+  ${ref("src_customers")}
 WHERE
   SAFE_CAST(customer_id AS INT64) IS NOT NULL
 

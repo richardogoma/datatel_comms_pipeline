@@ -1,8 +1,7 @@
-
 config {
   type: "operations",
   schema: "raw",
-  name: "customers_external",
+  name: "src_customers",
   hasOutput: true,
 }
 

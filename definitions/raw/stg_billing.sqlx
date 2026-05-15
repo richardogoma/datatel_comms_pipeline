@@ -13,7 +13,7 @@ SELECT
   currency,
   CAST(transaction_date AS TIMESTAMP) AS transaction_date
 FROM
-  ${ref("billing_transactions_external")}
+  ${ref("src_billing_transactions")}
 WHERE
   SAFE_CAST(transaction_id AS INT64) IS NOT NULL AND SAFE_CAST(customer_id AS INT64) IS NOT NULL
 

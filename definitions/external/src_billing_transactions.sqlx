@@ -1,8 +1,7 @@
-
 config {
   type: "operations",
   schema: "raw",
-  name: "billing_transactions_external",
+  name: "src_billing_transactions",
   hasOutput: true,
 }
 

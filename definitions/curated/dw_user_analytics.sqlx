@@ -1,4 +1,3 @@
-
 config {
   type: "table",
   schema: "curated",
@@ -17,7 +16,9 @@ config {
     short_sessions: "The number of short sessions for the customer.",
     medium_sessions: "The number of medium sessions for the customer.",
     long_sessions: "The number of long sessions for the customer.",
-    avg_data_per_session_mb: "The average data used per session in megabytes."
+    avg_data_per_session_mb: "The average data used per session in megabytes.",
+    total_country_revenue: "The total revenue for the customer\'s country.",
+    avg_country_arpu: "The average ARPU for the customer\'s country."
   }
 }
 
@@ -38,7 +39,9 @@ SELECT
   CASE
     WHEN COALESCE(auu.total_sessions, 0) = 0 THEN 0
     ELSE COALESCE(auu.total_data_used_mb, 0) / auu.total_sessions
-  END AS avg_data_per_session_mb
+  END AS avg_data_per_session_mb,
+  acr.total_revenue AS total_country_revenue,
+  acr.avg_arpu AS avg_country_arpu
 FROM
   ${ref("raw", "stg_customers")} c
 LEFT JOIN
@@ -49,3 +52,5 @@ LEFT JOIN
   ${ref("agg_arpu")} aa ON c.customer_id = aa.customer_id
 LEFT JOIN
   ${ref("agg_session_distribution")} asd ON c.customer_id = asd.customer_id
+LEFT JOIN
+  ${ref("agg_country_revenue")} acr ON c.country = acr.country

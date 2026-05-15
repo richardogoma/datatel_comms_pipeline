@@ -21,7 +21,7 @@ SELECT
     ELSE 0
   END AS session_duration_sec
 FROM
-  ${ref("network_sessions_external")}
+  ${ref("src_network_sessions")}
 WHERE
   SAFE_CAST(session_id AS INT64) IS NOT NULL AND SAFE_CAST(customer_id AS INT64) IS NOT NULL
 

@@ -1,0 +1,43 @@
+config {
+  type: "table",
+  schema: "enriched",
+  description: "Shows total revenue and average ARPU per country.",
+  columns: {
+    country: "The country.",
+    total_revenue: "The total revenue for the country.",
+    avg_arpu: "The average ARPU for the country."
+  }
+}
+
+WITH country_revenue AS (
+  SELECT
+    c.country,
+    SUM(aur.total_revenue) AS total_revenue
+  FROM
+    ${ref("raw", "stg_customers")} c
+  LEFT JOIN
+    ${ref("agg_user_revenue")} aur ON c.customer_id = aur.customer_id
+  GROUP BY
+    c.country
+),
+
+country_arpu AS (
+  SELECT
+    c.country,
+    AVG(aa.arpu) AS avg_arpu
+  FROM
+    ${ref("raw", "stg_customers")} c
+  LEFT JOIN
+    ${ref("agg_arpu")} aa ON c.customer_id = aa.customer_id
+  GROUP BY
+    c.country
+)
+
+SELECT
+  cr.country,
+  cr.total_revenue,
+  ca.avg_arpu
+FROM
+  country_revenue cr
+LEFT JOIN
+  country_arpu ca ON cr.country = ca.country

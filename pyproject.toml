@@ -10,6 +10,7 @@ dependencies = [
     "tqdm>=4.67.3",
     "google-cloud-storage>=2.10.0",
     "great-expectations>=1.17.1",
+    "truststore>=0.10.4",
 ]
 
 [dependency-groups]

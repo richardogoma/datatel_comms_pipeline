@@ -1,10 +1,12 @@
 import argparse
+import truststore
 from datetime import datetime
 
 from utilities.data_generator import generate_data
 from utilities.gcs_uploader import upload_raw_files
 from validation.stage_1_checks import run_stage_1_checks
 
+truststore.inject_into_ssl()
 
 def main(
     generate=False,

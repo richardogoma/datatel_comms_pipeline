@@ -45,9 +45,9 @@ This project establishes a robust, multi-layered data pipeline on Google Cloud P
 *   **Purpose:** A wide, flat table joining all enriched metrics with customer dimensions, optimized for BI tools and SQL analysis.
 
 ------------------------
-## Executing the Data Ingestion Utility
+## Executing the Pipeline
 
-Use `uv` to run commands from the project root.
+For the data generation and upload utility, use `uv` Python package manager to run commands from the project root.
 
 Generate raw data and validate:
 
@@ -58,19 +58,23 @@ uv run main.py --generate --validate
 Upload raw files to GCS:
 
 ```powershell
-uv run main.py --upload --bucket <your-gcs-bucket>
+uv run main.py --upload --bucket datatel_comms_landing
 ```
 
 Run the full workflow in order: generate, validate, then upload.
 
 ```powershell
-uv run main.py --run-all --bucket <your-gcs-bucket>
+uv run main.py --run-all --bucket datatel_comms_landing
 ```
+
+On BigQuery, simply execute the pipeline from the GUI. 
 
 --------------------------
 ## Deliverables
 
 ### Deliverable - Stage 1
+
+*What problems did you find in the data quality check or initial validation stage?*
 ---------------
 
 #### src_billing_transactions — Duplicate `transaction_id` values
@@ -93,6 +97,8 @@ Duplicate sessions will cause overcounting in session-based metrics and network 
 
 
 ### Deliverable - Stage 2
+
+*Why did you chose `ROW_NUMBER()` rather than `SELECT DISTINCT` for deduplication?*
 ---------------
 
 For the `stg_*` tables, `ROW_NUMBER()` was used instead of `SELECT DISTINCT` because it provides controlled and deterministic deduplication.
@@ -112,6 +118,8 @@ This approach ensures that when multiple versions of the same record exist, only
 
 
 ### Deliverable - Stage 3
+
+*How did you handle the divide-by-zero risk and why is `NULLIF` the appropriate method?*
 -----------------
 
 The ARPU calculation is `total_revenue / num_months`. If a customer has no transactions, `num_months` would be 0, causing a "division by zero" error.
@@ -120,6 +128,8 @@ The expression `NULLIF(num_months, 0)` elegantly solves this. If `num_months` is
 
 
 ### Deliverable -  Stage 4
+
+*Why `LEFT JOIN`s rather than `INNER JOIN`s, and what would break if you used `INNER JOIN`s instead?*
 ------------------
 
 The join strategy uses `LEFT JOIN` to ensure the final table includes **every customer**, making the `stg_customers` table the source of truth.
@@ -128,6 +138,8 @@ If `INNER JOIN` were used instead, any customer without activity (e.g., a new us
 
 
 ### Deliverable -  Stage 5
+
+*For the churn risk query, what are the limitations of the current rule, and how would you improve it?*
 ------------------
 
 The churn risk rule implemented is a good starting point because it combines both engagement (`total_sessions`) and monetization (`total_revenue`) instead of relying on a single metric. Adding the `created_at` condition also improves the logic by preventing newly registered customers from being incorrectly classified as “High Risk” before they have had enough time to use the service.
@@ -145,6 +157,8 @@ Overall, the query demonstrates a more realistic churn detection approach by int
 
 
 ### Deliverable -  Stage 6
+
+*How you would extend the incremental pattern to cover the staging tables, `stg_sessions` and `stg_customers`?*
 ------------------
 
 The incremental pattern is implemented in the `stg_billing`, `stg_customers`, and `stg_sessions` tables to efficiently process only new data, rather than rebuilding the tables on every run.
@@ -154,7 +168,8 @@ This is achieved by:
 1. **Filtering for New Records:** A `WHERE` clause filters the source data to select only records with a timestamp (e.g., `transaction_date`) that is newer than the most recent record already in the target table.
 2. **Merging with a Unique Key:** A `uniqueKey` (e.g., `transaction_id`) is defined, which instructs Dataform to perform a `MERGE` operation. This automatically updates existing rows if a match is found and inserts the record if it's new.
 
-*Does this mean the use of `ROW_NUMBER` is redundant, or what does it do?*
+*Does this mean the use of `ROW_NUMBER` is redundant?*
+-------------------
 
 Think of a scenario where the source data for a single day contains the same `transaction_id` twice (perhaps an initial record and then a correction sent a few hours later). The incremental `WHERE` clause would select both of these records because they are both new.
 

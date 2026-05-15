@@ -13,6 +13,9 @@ This project establishes a robust, multi-layered data pipeline on Google Cloud P
 --------------------------
 ## Technical Architecture
 
+<img width="1376" height="768" alt="a_professional_high_fidelity_technical_architecture_diagram_of_a_multi_layered" src="https://github.com/user-attachments/assets/3c3f55c9-9f86-4847-b794-d12145c60aaf" />
+
+
 ### Layer 1: Data Ingestion (Landing Zone)
 *   **Process:** Generates source data, performs Data Quality (DQ) checks, and uploads CSVs to Google Cloud Storage (GCS) buckets.
 *   **Outputs:** Data Quality Report, CSV files in GCS.
